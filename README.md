@@ -1,7 +1,7 @@
 # MobileApp2025
 
 Este es un proyecto desarrollado como parte de la clase **COM-437** de **Saint Leo University**.  
-La aplicación consiste en un **reproductor de música simple**, y su objetivo principal es **familiarizarse con la construcción de interfaces para Android utilizando Jetpack Compose**, programando con **Kotlin** para desarrollar una aplicación nativa.
+La aplicación consiste en un **reproductor de música simple**, y su objetivo principal es **familiarizarme con la construcción de interfaces para Android utilizando Jetpack Compose**, programando con **Kotlin** para desarrollar una aplicación nativa.
 
 ---
 
