@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.example.mobileapp2025
 
 import android.content.Context
@@ -31,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
 
 class MainActivity : ComponentActivity() {
@@ -47,7 +46,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun rememberPlayer(context: Context, uri:Uri): ExoPlayer {
-    val player = remember{
+    val player = remember {
         ExoPlayer.Builder(context).build().apply {
             val mediaItem = MediaItem.fromUri(uri)
             setMediaItem(mediaItem)
@@ -84,24 +83,33 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
-    val uri = "placeholderuri"
+    val uri = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3".toUri()
     val player = rememberPlayer(context, uri)
 
     Scaffold (
         topBar = {
-            TopAppBar(title = { Text("Music PLayer") });
-        }
+            TopAppBar(title = {Text("Music Player")})
+    },
         bottomBar = {
-            MediaControlBar(onPlay = player.play(), onPause = player.pause())
+            MediaControlBar(
+                onPlay = {player.play()},
+                onPause = {player.pause()}
             )
         }
     )
     {
-        padding -> Column(modifier = Modifier.padding(padding)) {
+        padding ->
+        Column(modifier = Modifier.padding(padding)) {
             PlayerScreen(player = player)
         }
     }
+}
+
+@Composable
+fun PlayerScreen (player: ExoPlayer) {
+
 }
