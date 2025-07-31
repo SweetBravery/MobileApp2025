@@ -1,16 +1,26 @@
 package com.example.mobileapp2025
 
+import android.Manifest
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.MediaItem
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.SkipNext
@@ -18,24 +28,59 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
+//import para leer archivo
+import android.os.Environment
+import android.util.Log
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.core.app.ActivityCompat
+import com.example.mobileapp2025.model.GetSongs
+import java.io.File
+//import clase propia
+import com.example.mobileapp2025.model.Song
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        //Android 11+ requiere de revisión de permisos
+        // manuales además de las declaraciones del manifest
+        val permissions = if(Build.VERSION.SDK_INT >= 33) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO
+            )
+            } else {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        ActivityCompat.requestPermissions(
+            this,
+            permissions,
+            0
+        )
+
         setContent {
             MobileApp2025Theme {
                 MainScreen()
@@ -45,12 +90,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun rememberPlayer(context: Context, uri:Uri): ExoPlayer {
+fun rememberPlayer(context: Context): ExoPlayer {
     val player = remember {
         ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.fromUri(uri)
-            setMediaItem(mediaItem)
-            prepare()
         }
     }
     DisposableEffect(Unit) {
@@ -65,21 +107,93 @@ fun rememberPlayer(context: Context, uri:Uri): ExoPlayer {
 fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
     var isPlaying by remember { mutableStateOf(false) }
     //Boton de atras
-    IconButton(onClick = {}) {
-        Icon(imageVector = Icons.Filled.SkipPrevious, contentDescription = "Anterior")
-    }
-    //Boton de Pausar/Reproducir intercambiable
-    IconButton(onClick = {
-        if (isPlaying) {onPause()}
-        else {onPlay()}
-        isPlaying = !isPlaying
-    }) {
-        Icon(imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = if (isPlaying) "Pausar" else "Reproducir")
-    }
-    //Boton de Adelante
-    IconButton(onClick = {}) {
-        Icon(imageVector = Icons.Filled.SkipNext, contentDescription = "Posterior")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Gray),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        //Imagen
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .background(Color.Transparent),
+            verticalArrangement = Arrangement.Center
+            ) {
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                modifier = Modifier.size(100.dp),
+                contentDescription = "Icono Cancion")
+        }
+        //Nombre Cancion & Artista
+        Column(modifier = Modifier
+            .weight(3f)
+            .fillMaxWidth()
+            .background(Color.Transparent),
+            horizontalAlignment = Alignment.CenterHorizontally
+
+            ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Transparent)
+            ) { Text("Nombre de la cancion", textAlign = TextAlign.Left)}
+            Row (
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Transparent)
+            ){ Text("Nombre del Autor", textAlign = TextAlign.Left)}
+        }
+        //Controles de Reproduccion
+        Column(modifier = Modifier.weight(3f),
+            horizontalAlignment = Alignment.End)
+        {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Gray),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                //atras
+                Column (modifier = Modifier
+                    .weight(1f)
+                    .background(Color.Transparent),
+                    verticalArrangement = Arrangement.Center){
+                    IconButton(onClick = {}) {
+                        Icon(imageVector = Icons.Filled.SkipPrevious, contentDescription = "Anterior")
+                    }
+                }
+                //reproducir o pausar
+                Column (modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(Color.Transparent),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    //Boton de Pausar/Reproducir intercambiable
+                    IconButton(onClick = {
+                        if (isPlaying) {onPause()}
+                        else {onPlay()}
+                        isPlaying = !isPlaying
+                    }) {
+                        Icon(imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pausar" else "Reproducir")
+                    }
+                }
+                //adelante
+                Column (modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(Color.Transparent),
+                    horizontalAlignment = Alignment.End) {
+                    //Boton de Adelante
+                    IconButton(onClick = {}) {
+                        Icon(imageVector = Icons.Filled.SkipNext, contentDescription = "Posterior")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -87,29 +201,76 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
-    val uri = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3".toUri()
-    val player = rememberPlayer(context, uri)
 
-    Scaffold (
-        topBar = {
-            TopAppBar(title = {Text("Music Player")})
-    },
-        bottomBar = {
-            MediaControlBar(
-                onPlay = {player.play()},
-                onPause = {player.pause()}
-            )
+    //inicializador del Exoplayer
+    val player = rememberPlayer(context)
+    //obtener el listado de canciones del MediaStore
+    var songs by remember {mutableStateOf<List<Song>>(emptyList())}
+    LaunchedEffect(Unit) {
+        songs = GetSongs(context)
+        Log.d("DEBUG", "Canciones encontradas: ${songs.size}")
+    }
+    //reproducir cancion seleccionada
+    var selectedSong by remember { mutableStateOf<Song?>(null) }
+    LaunchedEffect(selectedSong) {
+        selectedSong?.let { thisSong ->
+            val mediaItem = MediaItem.fromUri(thisSong.uri)
+            player.setMediaItem(mediaItem)
+            player.prepare()
+            player.play()
         }
-    )
-    {
-        padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            PlayerScreen(player = player)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color.LightGray
+    ) {
+        Scaffold (
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(title = {Text("Music Player")},
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Gray
+                    )
+                )
+            },
+            bottomBar = {
+                MediaControlBar(
+                    onPlay = {player.play()},
+                    onPause = {player.pause()}
+                )
+            }
+        )
+        {
+                padding ->
+            Column(modifier = Modifier.padding(padding)) {
+                SongList(songs = songs, onSongSelected = {song -> selectedSong = song})
+            }
         }
     }
 }
 
 @Composable
-fun PlayerScreen (player: ExoPlayer) {
-
+fun SongList(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+    LazyColumn {
+        items(
+            items = songs,
+            key = {it.id}
+        ) { song ->
+            SongItem(song = song, onClick = {onSongSelected(song)})
+        }
+    }
 }
+@Composable
+fun SongItem(song: Song, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp)
+    ) {
+        Text(text = song.titulo, style = MaterialTheme.typography.titleMedium)
+        Text(text = song.artista, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+    }
+}
+
