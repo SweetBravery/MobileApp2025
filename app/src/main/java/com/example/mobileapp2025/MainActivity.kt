@@ -1,6 +1,7 @@
 package com.example.mobileapp2025
 
 import android.Manifest
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -55,11 +56,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.mobileapp2025.model.GetSongs
+import com.example.mobileapp2025.model.PlaylistViewModel
 import java.io.File
 //import clase propia
 import com.example.mobileapp2025.model.Song
+// import del viewmodel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,6 +97,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/*
 @Composable
 fun rememberPlayer(context: Context): ExoPlayer {
     val player = remember {
@@ -102,10 +111,16 @@ fun rememberPlayer(context: Context): ExoPlayer {
     }
     return player
 }
+*/
 
 @Composable
-fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
-    var isPlaying by remember { mutableStateOf(false) }
+fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
+    val player = playlistViewModel.player
+    // var isPlaying by remember { mutableStateOf(player.isPlaying) }
+    var isPlaying = playlistViewModel.isPlaying
+    // cancíón actual si hay
+    //val currentSong = playlistViewModel.playlist.getOrNull(player.currentMediaItemIndex)
+    var currentSong = playlistViewModel.currentSong
     //Boton de atras
     Row(
         modifier = Modifier
@@ -114,7 +129,7 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        //Imagen
+        //Imagen de canción
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -138,12 +153,18 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Transparent)
-            ) { Text("Nombre de la cancion", textAlign = TextAlign.Left)}
+            ) { Text(currentSong?.titulo ?: "Sin titulo",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Left)}
             Row (
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Transparent)
-            ){ Text("Nombre del Autor", textAlign = TextAlign.Left)}
+            ){ Text(currentSong?.artista ?: "Artista desconocido",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Left)}
         }
         //Controles de Reproduccion
         Column(modifier = Modifier.weight(3f),
@@ -161,7 +182,13 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
                     .weight(1f)
                     .background(Color.Transparent),
                     verticalArrangement = Arrangement.Center){
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = {
+                        val hasPrevious = player.hasPreviousMediaItem()
+                        if (hasPrevious) {
+                            player.seekToPreviousMediaItem()
+                            player.play()
+                        }
+                    }) {
                         Icon(imageVector = Icons.Filled.SkipPrevious, contentDescription = "Anterior")
                     }
                 }
@@ -173,8 +200,8 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     //Boton de Pausar/Reproducir intercambiable
                     IconButton(onClick = {
-                        if (isPlaying) {onPause()}
-                        else {onPlay()}
+                        if (isPlaying) {player.pause()}
+                        else {player.play()}
                         isPlaying = !isPlaying
                     }) {
                         Icon(imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -188,7 +215,13 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
                     .background(Color.Transparent),
                     horizontalAlignment = Alignment.End) {
                     //Boton de Adelante
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = {
+                        val hasNext = player.hasNextMediaItem()
+                        if (hasNext) {
+                            player.seekToNextMediaItem()
+                            player.play()
+                        }
+                    }) {
                         Icon(imageVector = Icons.Filled.SkipNext, contentDescription = "Posterior")
                     }
                 }
@@ -201,16 +234,24 @@ fun MediaControlBar(onPlay: ()->Unit, onPause: ()->Unit) {
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = ViewModelProvider.AndroidViewModelFactory(
+            context.applicationContext as Application
+        )
+    )
 
     //inicializador del Exoplayer
-    val player = rememberPlayer(context)
-    //obtener el listado de canciones del MediaStore
-    var songs by remember {mutableStateOf<List<Song>>(emptyList())}
-    LaunchedEffect(Unit) {
-        songs = GetSongs(context)
-        Log.d("DEBUG", "Canciones encontradas: ${songs.size}")
-    }
+    // val player = rememberPlayer(context)
+    //Listado de canciones del Dispositivo
+    //var songs by remember {mutableStateOf<List<Song>>(emptyList())}
+    // LaunchedEffect(Unit) {
+    //    songs = GetSongs(context)
+    //    Log.d("DEBUG", "Canciones encontradas: ${songs.size}")
+    //}
+    //Listado de cancioens en la cola de reproducción.
+    //var playlist by remember {mutableStateOf<List<Song>>(emptyList())}
     //reproducir cancion seleccionada
+    /*
     var selectedSong by remember { mutableStateOf<Song?>(null) }
     LaunchedEffect(selectedSong) {
         selectedSong?.let { thisSong ->
@@ -220,7 +261,13 @@ fun MainScreen() {
             player.play()
         }
     }
-
+    */
+    /*
+    SongList(
+        songs = playlistViewModel.songs,
+        onSongSelected = { song -> playlistViewModel.playNow(song)}
+    )
+    */
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.LightGray
@@ -235,37 +282,44 @@ fun MainScreen() {
                 )
             },
             bottomBar = {
-                MediaControlBar(
-                    onPlay = {player.play()},
-                    onPause = {player.pause()}
-                )
+                MediaControlBar(playlistViewModel)
             }
         )
         {
                 padding ->
             Column(modifier = Modifier.padding(padding)) {
-                SongList(songs = songs, onSongSelected = {song -> selectedSong = song})
+                SongList(
+                    songs = playlistViewModel.songs,
+                    currentSong = playlistViewModel.playlist.getOrNull(playlistViewModel.player.currentMediaItemIndex),
+                    onSongSelected = {song -> playlistViewModel.playNow(song) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun SongList(songs: List<Song>, onSongSelected: (Song) -> Unit) {
+fun SongList(songs: List<Song>, currentSong: Song?, onSongSelected: (Song) -> Unit) {
     LazyColumn {
         items(
             items = songs,
             key = {it.id}
         ) { song ->
-            SongItem(song = song, onClick = {onSongSelected(song)})
+            val isCurrent = song == currentSong
+            SongItem(
+                song = song,
+                onClick = {onSongSelected(song)},
+                isPlaying = isCurrent
+                )
         }
     }
 }
 @Composable
-fun SongItem(song: Song, onClick: () -> Unit) {
+fun SongItem(song: Song, onClick: () -> Unit, isPlaying: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (isPlaying) Color.Black.copy(alpha=0.2f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {

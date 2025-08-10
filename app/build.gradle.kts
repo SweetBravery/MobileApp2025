@@ -60,4 +60,5 @@ dependencies {
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.lifecycle.viewmodel.compose)
 }
