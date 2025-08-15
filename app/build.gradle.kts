@@ -50,6 +50,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.annotation)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.media3.ui)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -61,4 +63,8 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.lifecycle.viewmodel.compose)
+    // implementation("androidx.media3:media3-session:1.8.0")
+    implementation("androidx.media3:media3-session:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
+
 }

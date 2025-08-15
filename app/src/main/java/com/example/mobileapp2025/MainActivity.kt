@@ -52,11 +52,19 @@ import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
 //import para leer archivo
 import android.os.Environment
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.paddingFrom
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModel
@@ -125,6 +133,7 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(100.dp)
             .background(Color.Gray),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -138,9 +147,10 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
             ) {
             Icon(
                 imageVector = Icons.Default.MusicNote,
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(64.dp),
                 contentDescription = "Icono Cancion")
         }
+        Spacer(modifier = Modifier.width(12.dp))
         //Nombre Cancion & Artista
         Column(modifier = Modifier
             .weight(3f)
@@ -166,8 +176,9 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Left)}
         }
+        Spacer(modifier = Modifier.width(12.dp))
         //Controles de Reproduccion
-        Column(modifier = Modifier.weight(3f),
+        Column(modifier = Modifier.weight(2f),
             horizontalAlignment = Alignment.End)
         {
             Row(
@@ -290,8 +301,8 @@ fun MainScreen() {
             Column(modifier = Modifier.padding(padding)) {
                 SongList(
                     songs = playlistViewModel.songs,
-                    currentSong = playlistViewModel.playlist.getOrNull(playlistViewModel.player.currentMediaItemIndex),
-                    onSongSelected = {song -> playlistViewModel.playNow(song) }
+                    currentSong = playlistViewModel.currentSong,
+                    onSongSelected = {song -> playlistViewModel.playNow(song)}
                 )
             }
         }
@@ -316,15 +327,49 @@ fun SongList(songs: List<Song>, currentSong: Song?, onSongSelected: (Song) -> Un
 }
 @Composable
 fun SongItem(song: Song, onClick: () -> Unit, isPlaying: Boolean) {
-    Column(
+    Row (
         modifier = Modifier
             .fillMaxWidth()
             .background(if (isPlaying) Color.Black.copy(alpha=0.2f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {
-        Text(text = song.titulo, style = MaterialTheme.typography.titleMedium)
-        Text(text = song.artista, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Column{
+            //Imagen de Canción.
+            if (song.albumArt != null) {
+                Image(
+                    modifier = Modifier.size(64.dp),
+                    bitmap = song.albumArt.asImageBitmap(),
+                    contentDescription = song.titulo
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+        //Nombre de cancion y Arista
+        Column {
+            Text(
+                text = song.titulo,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(text = song.artista,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        //Botón de Añadir a Playlist
+        //Sin implementar
     }
 }
 

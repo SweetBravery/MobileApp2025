@@ -40,6 +40,8 @@ class PlaylistViewModel (application: Application) : AndroidViewModel(applicatio
             player.setMediaItems(mediaItems, 0, 0L)
             //preparar el player para que funcione la canción por defecto
             player.prepare()
+            //para repetir canciones ciclicamente
+            player.repeatMode = Player.REPEAT_MODE_ALL
         }
         //listener para actualizar la cancion actual cuando cambie
         player.addListener(object: Player.Listener {
@@ -48,8 +50,9 @@ class PlaylistViewModel (application: Application) : AndroidViewModel(applicatio
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                mediaItem?.let {
-                    currentSong = playlist.find {song -> song.uri == it.localConfiguration?.uri}
+                mediaItem?.let { item ->
+                    val song = playlist.find {s -> s.uri == item.localConfiguration?.uri}
+                    currentSong = song
                 }
             }
         })
@@ -65,13 +68,23 @@ class PlaylistViewModel (application: Application) : AndroidViewModel(applicatio
          */
         //crea una nueva lista con la canción seleccioanda al inicio, añade las canciones de la
         //playlist escepto la canción seleccionada
-        playlist = listOf(song) + playlist.filter {it != song}
+
+
+        // playlist = listOf(song) + playlist.filter {it != song}
         //convierte un item song de clase Song en un MediaItem que puede ser añadido a exoplayer
-        val mediaItems = playlist.map { MediaItem.fromUri(it.uri)}.toMutableList()
-        player.setMediaItems(mediaItems, 0, 0L)
-        player.prepare()
-        player.play()
-        currentSong = song
+        // val mediaItems = playlist.map { MediaItem.fromUri(it.uri)}.toMutableList()
+        // player.setMediaItems(mediaItems, 0, 0L)
+        // player.prepare()
+        // player.play()
+        // currentSong = song
+
+
+        //metodo que hace saltar a la cancion
+        val index = playlist.indexOf(song)
+        if (index != -1) {
+            player.seekTo(index, 0L) //
+            player.play()
+        }
     }
 
     fun addToPlaylist(song: Song) {
