@@ -1,14 +1,6 @@
 package com.example.mobileapp2025.model
 
-import android.app.Application
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-
+/*
 class PlaylistViewModel (application: Application) : AndroidViewModel(application){
     private val context = application.applicationContext
 
@@ -113,3 +105,4 @@ class PlaylistViewModel (application: Application) : AndroidViewModel(applicatio
         player.release()
     }
 }
+*/
