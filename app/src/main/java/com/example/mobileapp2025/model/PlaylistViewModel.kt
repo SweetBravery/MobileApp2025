@@ -1,5 +1,13 @@
 package com.example.mobileapp2025.model
 
+import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.AndroidViewModel
+import androidx.media3.common.Player
+import androidx.media3.session.MediaController
+
 /*
 class PlaylistViewModel (application: Application) : AndroidViewModel(application){
     private val context = application.applicationContext
@@ -106,3 +114,48 @@ class PlaylistViewModel (application: Application) : AndroidViewModel(applicatio
     }
 }
 */
+
+class PlaylistViewModel(application: Application): AndroidViewModel(application) {
+    val allSongs = mutableStateOf<List<Song>>(emptyList())
+    val activePlaylist = mutableStateOf<List<Song>>(emptyList())
+    val currentSong = mutableStateOf<Song?>(null)
+    // el valor de current song es configurado desde el
+    //launched effect de seleccioanar
+
+    @SuppressLint("StaticFieldLeak")
+    lateinit var mediaController: MediaController
+
+    fun loadAllSongs(context: Context) {
+        allSongs.value = GetSongs(context)
+        if (activePlaylist.value.isEmpty()) {
+            //asignacion de playlist predeterminada
+            activePlaylist.value = allSongs.value
+            loadPlaylistIntoController()
+        }
+    }
+
+    fun loadPlaylistIntoController() {
+        mediaController.setMediaItems(activePlaylist.value.map { it.toMediaItem()})
+        mediaController.prepare()
+        enableRepeatAll()
+        //inicialización de currentsong con la primera canción
+        if (activePlaylist.value.isNotEmpty()) {
+            currentSong.value = activePlaylist.value[0]
+        }
+    }
+
+    fun selectSong(song: Song) {
+        val index = activePlaylist.value.indexOf(song)
+        mediaController.seekTo(index, 0L)
+        mediaController.play()
+    }
+
+    fun enableRepeatAll() {
+        mediaController.repeatMode = Player.REPEAT_MODE_ALL
+    }
+
+    fun disableRepeatAll() {
+        mediaController.repeatMode = Player.REPEAT_MODE_OFF
+    }
+
+}

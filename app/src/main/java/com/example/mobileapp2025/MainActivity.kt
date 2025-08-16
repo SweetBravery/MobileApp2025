@@ -4,6 +4,7 @@ package com.example.mobileapp2025
 //import clase propia
 // import del viewmodel
 import android.Manifest
+import android.app.Application
 import android.content.ComponentName
 import android.os.Build
 import android.os.Bundle
@@ -55,11 +56,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.example.mobileapp2025.model.GetSongs
+import com.example.mobileapp2025.model.PlaylistViewModel
 import com.example.mobileapp2025.model.Song
 import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
 import com.google.common.util.concurrent.MoreExecutors
@@ -68,6 +71,11 @@ class MainActivity : ComponentActivity() {
     //var para asignar Mediacontroller
     lateinit var controller: MediaController
     // variable para controlar la carga de controlador
+    lateinit var playlistViewModel: PlaylistViewModel
+    // es necesario declarar y construir el playlist
+    //view model en OnCreate() ya que utilzia el MediaController, asi que
+    //se le tiene que asingar el controlaor después
+    //de ser creado en OnStart()
     private val controllerReady = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,6 +96,10 @@ class MainActivity : ComponentActivity() {
             permissions,
             0
         )
+
+        //creación del viewmodel
+        playlistViewModel = ViewModelProvider(this,
+            ViewModelProvider.AndroidViewModelFactory.getInstance(application))[PlaylistViewModel::class.java]
 
         setContent {
             MobileApp2025Theme {
@@ -115,6 +127,9 @@ class MainActivity : ComponentActivity() {
         controllerFuture.addListener(
             {
                 controller = controllerFuture.get()
+                //asignacion del controlador a ViewModel
+                playlistViewModel.mediaController = controller
+                playlistViewModel.loadPlaylistIntoController()
                 controllerReady.value = true
                 // controller.play()
             },
@@ -142,17 +157,24 @@ fun rememberPlayer(context: Context): ExoPlayer {
 @Composable
 fun MediaControlBar(controller: MediaController, songs:List<Song>) {
     var isPlaying = remember { mutableStateOf(controller.isPlaying) }
-    val currentSong = remember { mutableStateOf<Song?>(null) }
+    //construcción del PlaylistViewmodel compartido
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = ViewModelProvider.AndroidViewModelFactory(LocalContext.current.applicationContext as Application)
+    )
     //Registro de Listeners
-    //Este launchedeffect permite lanzar la canción individual y ponerla como un mediaItem
+    //Este launchedeffect permite seleccionar la canción de la lista conectada a la playlist
     LaunchedEffect(controller) {
         controller.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlayingValue: Boolean) {
                 isPlaying.value = isPlayingValue
             }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                currentSong.value = mediaItem?.let { item ->
-                    songs.find { song -> song.uri == item.localConfiguration?.uri }
+                //currentSong.value = mediaItem?.let { item ->
+                //songs.find { song -> song.uri == item.localConfiguration?.uri }
+                playlistViewModel.currentSong.value = mediaItem?.let { item ->
+                    playlistViewModel.activePlaylist.value.find { song ->
+                        song.uri == item.localConfiguration?.uri
+                    }
                 }
             }
         })
@@ -192,7 +214,7 @@ fun MediaControlBar(controller: MediaController, songs:List<Song>) {
                     .fillMaxWidth()
                     .background(Color.Transparent)
             ) { Text(
-                currentSong.value?.titulo ?: "Sin titulo",
+                playlistViewModel.currentSong.value?.titulo ?: "Sin titulo",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Left)}
@@ -201,7 +223,7 @@ fun MediaControlBar(controller: MediaController, songs:List<Song>) {
                     .fillMaxWidth()
                     .background(Color.Transparent)
             ){ Text(
-                currentSong.value?.artista ?: "Artista Desconocido",
+                playlistViewModel.currentSong.value?.artista ?: "Artista Desconocido",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Left)}
@@ -274,8 +296,20 @@ fun MediaControlBar(controller: MediaController, songs:List<Song>) {
 @Composable
 fun MainScreen(controller: MediaController) {
     val context = LocalContext.current
+    //construcción del PlaylistViewmodel compartido
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = ViewModelProvider.AndroidViewModelFactory(LocalContext.current.applicationContext as Application)
+    )
+
+    //carga inicial de las canciones
+    LaunchedEffect(Unit) {
+        playlistViewModel.loadAllSongs(context = context)
+    }
+
     val mediaController = controller
-    val songs = remember { GetSongs(context) }
+    val allSongs = playlistViewModel.allSongs.value
+    val activePlaylist = playlistViewModel.activePlaylist.value
+
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -291,19 +325,17 @@ fun MainScreen(controller: MediaController) {
                 )
             },
             bottomBar = {
-                MediaControlBar(mediaController, songs)
+                MediaControlBar(mediaController, activePlaylist)
             }
         )
         {
                 padding ->
             Column(modifier = Modifier.padding(padding)) {
                 SongList(
-                    songs = songs,
-                    currentSong = songs.find { it.uri == mediaController.currentMediaItem?.localConfiguration?.uri },
+                    songs = playlistViewModel.activePlaylist.value,
+                    currentSong = playlistViewModel.currentSong.value,
                     onSongSelected = { song ->              // recibe el Song seleccionado
-                        val mediaItem = song.toMediaItem()  // Lo convierte a MediaItem
-                        mediaController.setMediaItem(mediaItem, 0)
-                        mediaController.play()
+                        playlistViewModel.selectSong(song)
                     }
                 )
             }
