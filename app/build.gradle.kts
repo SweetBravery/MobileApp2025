@@ -66,5 +66,6 @@ dependencies {
     // implementation("androidx.media3:media3-session:1.8.0")
     implementation("androidx.media3:media3-session:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
+    implementation("androidx.compose.runtime:runtime-livedata:1.9.0")
 
 }

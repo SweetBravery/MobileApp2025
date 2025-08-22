@@ -1,31 +1,39 @@
 package com.example.mobileapp2025
 
+//import para leer archivo
+//import clase propia
+// import del viewmodel
 import android.Manifest
 import android.app.Application
-import android.content.Context
-import android.net.Uri
+import android.content.ComponentName
 import android.os.Build
 import android.os.Bundle
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.common.MediaItem
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,48 +44,41 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
-//import para leer archivo
-import android.os.Environment
-import android.util.Log
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.paddingFrom
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.mobileapp2025.model.GetSongs
-import com.example.mobileapp2025.model.PlaylistViewModel
-import java.io.File
-//import clase propia
-import com.example.mobileapp2025.model.Song
-// import del viewmodel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.example.mobileapp2025.model.PlaylistViewModel
+import com.example.mobileapp2025.model.Song
+import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
+import com.google.common.util.concurrent.MoreExecutors
+
+//import androidx.compose.runtime.livedata.observeAsState
+
 
 class MainActivity : ComponentActivity() {
+    //var para asignar Mediacontroller
+    lateinit var controller: MediaController
+    // variable para controlar la carga de controlador
+    lateinit var playlistViewModel: PlaylistViewModel
+    // es necesario declarar y construir el playlist
+    //view model en OnCreate() ya que utilzia el MediaController, asi que
+    //se le tiene que asingar el controlaor después
+    //de ser creado en OnStart()
+    private val controllerReady = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -97,11 +98,44 @@ class MainActivity : ComponentActivity() {
             0
         )
 
+        //creación del viewmodel
+        playlistViewModel = ViewModelProvider(this,
+            ViewModelProvider.AndroidViewModelFactory.getInstance(application))[PlaylistViewModel::class.java]
+
         setContent {
             MobileApp2025Theme {
-                MainScreen()
+                if (controllerReady.value) {
+                    MainScreen(controller = controller)
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        //Implementación de conexión al Service mediante cliente con token
+
+        val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
+        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+
+        controllerFuture.addListener(
+            {
+                controller = controllerFuture.get()
+                //asignacion del controlador a ViewModel
+                playlistViewModel.attachController(controller)
+                playlistViewModel.loadPlaylistIntoController()
+                controllerReady.value = true
+                // controller.play()
+            },
+            MoreExecutors.directExecutor()
+        )
     }
 }
 
@@ -122,14 +156,13 @@ fun rememberPlayer(context: Context): ExoPlayer {
 */
 
 @Composable
-fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
-    val player = playlistViewModel.player
-    // var isPlaying by remember { mutableStateOf(player.isPlaying) }
-    var isPlaying = playlistViewModel.isPlaying
-    // cancíón actual si hay
-    //val currentSong = playlistViewModel.playlist.getOrNull(player.currentMediaItemIndex)
-    var currentSong = playlistViewModel.currentSong
-    //Boton de atras
+fun MediaControlBar(controller: MediaController, songs:List<Song>) {
+    //construcción del PlaylistViewmodel compartido
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = ViewModelProvider.AndroidViewModelFactory(LocalContext.current.applicationContext as Application)
+    )
+    val isPlaying = playlistViewModel.isPlaying.collectAsState().value
+    //Elementos UI de compose
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -163,7 +196,8 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Transparent)
-            ) { Text(currentSong?.titulo ?: "Sin titulo",
+            ) { Text(
+                playlistViewModel.currentSong.value?.titulo ?: "Sin titulo",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Left)}
@@ -171,7 +205,8 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Transparent)
-            ){ Text(currentSong?.artista ?: "Artista desconocido",
+            ){ Text(
+                playlistViewModel.currentSong.value?.artista ?: "Artista Desconocido",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Left)}
@@ -194,10 +229,10 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
                     .background(Color.Transparent),
                     verticalArrangement = Arrangement.Center){
                     IconButton(onClick = {
-                        val hasPrevious = player.hasPreviousMediaItem()
+                        val hasPrevious = controller.hasPreviousMediaItem()
                         if (hasPrevious) {
-                            player.seekToPreviousMediaItem()
-                            player.play()
+                            controller.seekToPreviousMediaItem()
+                            controller.play()
                         }
                     }) {
                         Icon(imageVector = Icons.Filled.SkipPrevious, contentDescription = "Anterior")
@@ -211,9 +246,8 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     //Boton de Pausar/Reproducir intercambiable
                     IconButton(onClick = {
-                        if (isPlaying) {player.pause()}
-                        else {player.play()}
-                        isPlaying = !isPlaying
+                        if (isPlaying) {controller.pause()}
+                        else {controller.play()}
                     }) {
                         Icon(imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pausar" else "Reproducir")
@@ -227,10 +261,10 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
                     horizontalAlignment = Alignment.End) {
                     //Boton de Adelante
                     IconButton(onClick = {
-                        val hasNext = player.hasNextMediaItem()
+                        val hasNext = controller.hasNextMediaItem()
                         if (hasNext) {
-                            player.seekToNextMediaItem()
-                            player.play()
+                            controller.seekToNextMediaItem()
+                            controller.play()
                         }
                     }) {
                         Icon(imageVector = Icons.Filled.SkipNext, contentDescription = "Posterior")
@@ -243,42 +277,23 @@ fun MediaControlBar(playlistViewModel: PlaylistViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(controller: MediaController) {
     val context = LocalContext.current
+    //construcción del PlaylistViewmodel compartido
     val playlistViewModel: PlaylistViewModel = viewModel(
-        factory = ViewModelProvider.AndroidViewModelFactory(
-            context.applicationContext as Application
-        )
+        factory = ViewModelProvider.AndroidViewModelFactory(LocalContext.current.applicationContext as Application)
     )
 
-    //inicializador del Exoplayer
-    // val player = rememberPlayer(context)
-    //Listado de canciones del Dispositivo
-    //var songs by remember {mutableStateOf<List<Song>>(emptyList())}
-    // LaunchedEffect(Unit) {
-    //    songs = GetSongs(context)
-    //    Log.d("DEBUG", "Canciones encontradas: ${songs.size}")
-    //}
-    //Listado de cancioens en la cola de reproducción.
-    //var playlist by remember {mutableStateOf<List<Song>>(emptyList())}
-    //reproducir cancion seleccionada
-    /*
-    var selectedSong by remember { mutableStateOf<Song?>(null) }
-    LaunchedEffect(selectedSong) {
-        selectedSong?.let { thisSong ->
-            val mediaItem = MediaItem.fromUri(thisSong.uri)
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            player.play()
-        }
+    //carga inicial de las canciones
+    LaunchedEffect(Unit) {
+        playlistViewModel.loadAllSongs(context = context)
     }
-    */
-    /*
-    SongList(
-        songs = playlistViewModel.songs,
-        onSongSelected = { song -> playlistViewModel.playNow(song)}
-    )
-    */
+
+    val mediaController = controller
+    val allSongs = playlistViewModel.allSongs.value
+    val activePlaylist = playlistViewModel.activePlaylist.value
+
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.LightGray
@@ -293,16 +308,18 @@ fun MainScreen() {
                 )
             },
             bottomBar = {
-                MediaControlBar(playlistViewModel)
+                MediaControlBar(mediaController, activePlaylist)
             }
         )
         {
                 padding ->
             Column(modifier = Modifier.padding(padding)) {
                 SongList(
-                    songs = playlistViewModel.songs,
-                    currentSong = playlistViewModel.currentSong,
-                    onSongSelected = {song -> playlistViewModel.playNow(song)}
+                    songs = playlistViewModel.activePlaylist.value,
+                    currentSong = playlistViewModel.currentSong.value,
+                    onSongSelected = { song ->              // recibe el Song seleccionado
+                        playlistViewModel.selectSong(song)
+                    }
                 )
             }
         }
@@ -330,7 +347,7 @@ fun SongItem(song: Song, onClick: () -> Unit, isPlaying: Boolean) {
     Row (
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isPlaying) Color.Black.copy(alpha=0.2f) else Color.Transparent)
+            .background(if (isPlaying) Color.Black.copy(alpha = 0.2f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {
