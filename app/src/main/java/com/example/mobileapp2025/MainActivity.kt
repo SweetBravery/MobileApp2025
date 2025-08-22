@@ -45,8 +45,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,14 +58,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.example.mobileapp2025.model.PlaylistViewModel
 import com.example.mobileapp2025.model.Song
 import com.example.mobileapp2025.ui.theme.MobileApp2025Theme
 import com.google.common.util.concurrent.MoreExecutors
+
+//import androidx.compose.runtime.livedata.observeAsState
+
 
 class MainActivity : ComponentActivity() {
     //var para asignar Mediacontroller
@@ -128,7 +129,7 @@ class MainActivity : ComponentActivity() {
             {
                 controller = controllerFuture.get()
                 //asignacion del controlador a ViewModel
-                playlistViewModel.mediaController = controller
+                playlistViewModel.attachController(controller)
                 playlistViewModel.loadPlaylistIntoController()
                 controllerReady.value = true
                 // controller.play()
@@ -156,29 +157,11 @@ fun rememberPlayer(context: Context): ExoPlayer {
 
 @Composable
 fun MediaControlBar(controller: MediaController, songs:List<Song>) {
-    var isPlaying = remember { mutableStateOf(controller.isPlaying) }
     //construcción del PlaylistViewmodel compartido
     val playlistViewModel: PlaylistViewModel = viewModel(
         factory = ViewModelProvider.AndroidViewModelFactory(LocalContext.current.applicationContext as Application)
     )
-    //Registro de Listeners
-    //Este launchedeffect permite seleccionar la canción de la lista conectada a la playlist
-    LaunchedEffect(controller) {
-        controller.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlayingValue: Boolean) {
-                isPlaying.value = isPlayingValue
-            }
-            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                //currentSong.value = mediaItem?.let { item ->
-                //songs.find { song -> song.uri == item.localConfiguration?.uri }
-                playlistViewModel.currentSong.value = mediaItem?.let { item ->
-                    playlistViewModel.activePlaylist.value.find { song ->
-                        song.uri == item.localConfiguration?.uri
-                    }
-                }
-            }
-        })
-    }
+    val isPlaying = playlistViewModel.isPlaying.collectAsState().value
     //Elementos UI de compose
     Row(
         modifier = Modifier
@@ -263,11 +246,11 @@ fun MediaControlBar(controller: MediaController, songs:List<Song>) {
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     //Boton de Pausar/Reproducir intercambiable
                     IconButton(onClick = {
-                        if (isPlaying.value) {controller.pause()}
+                        if (isPlaying) {controller.pause()}
                         else {controller.play()}
                     }) {
-                        Icon(imageVector = if (isPlaying.value) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying.value) "Pausar" else "Reproducir")
+                        Icon(imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pausar" else "Reproducir")
                     }
                 }
                 //adelante
