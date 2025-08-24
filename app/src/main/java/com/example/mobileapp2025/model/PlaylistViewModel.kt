@@ -125,6 +125,7 @@ class PlaylistViewModel(application: Application): AndroidViewModel(application)
     // el valor de current song es configurado desde el
     //launched effect de seleccioanar
 
+
     @SuppressLint("StaticFieldLeak")
     lateinit var mediaController: MediaController
 
@@ -196,5 +197,4 @@ class PlaylistViewModel(application: Application): AndroidViewModel(application)
     fun disableRepeatAll() {
         mediaController.repeatMode = Player.REPEAT_MODE_OFF
     }
-
 }
