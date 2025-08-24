@@ -13,9 +13,9 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var player: Player
 
-    //LifeCycle Methods for the Session
+    //LifeCycle Methods for the Session/Métodos Lifecycle
 
-    //Player and MediaSession creation
+    //Player & MediaSession
     override fun onCreate() {
         super.onCreate()
         player = ExoPlayer.Builder(this).build()
