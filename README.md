@@ -12,7 +12,6 @@ El objetivo de esta aplicación es el de brindar una Interfaz de Usuario impleme
 
 ## Funcionalidades
 
-- Barra de navegación
 - Listado de canciones
 - Barra de reproducción
 - Permisos de almacenamiento
